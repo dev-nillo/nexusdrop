@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#4f46e5">
+  <title>NexusDrop - Detalhes do Produto</title>
+
+  <!-- Conexões antecipadas -->
+  <link rel="preconnect" href="https://cdn.tailwindcss.com">
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link rel="preconnect" href="https://ofktrfgwbrzewftjewze.supabase.co" crossorigin>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="dns-prefetch" href="https://ae-pic-a1.aliexpress-media.com">
+  <link rel="preconnect" href="https://ae-pic-a1.aliexpress-media.com">
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
+  <!-- Fonte sem @import (que bloqueia a renderização) -->
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+  <!-- SDK do Supabase entra com `defer` -->
+  <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    body { font-family: 'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI', sans-serif; }
+  </style>
+</head>
+<body class="bg-gray-50 text-gray-800 flex flex-col min-h-screen">
+  <script>
+    const SUPABASE_URL = 'https://ofktrfgwbrzewftjewze.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_lBDn3j8kduTfeAtkRpgWLw_Mubzm1IF';
+    const SEU_WHATSAPP = "5513991234992";
+
+    // O SDK do Supabase entra com `defer`, então o cliente é criado na hora de usar.
+    // Se o CDN falhar, a página continua funcionando (só perde o banco).
+    let supabaseClient = null;
+    function initSupabase() {
+      if (!supabaseClient && window.supabase) {
+        try { supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY); } catch (e) { supabaseClient = null; }
+      }
+      return supabaseClient;
+    }
+  </script>
+
+  <!-- Topbar -->
+  <div class="bg-indigo-600 text-white text-center py-2 text-xs font-bold">
+    🚀 FRETE GRÁTIS PARA TODO O BRASIL | DESCONTO NO PIX
+  </div>
+
+  <!-- Header -->
+  <header class="bg-slate-900 text-white sticky top-0 z-40 shadow-xl">
+    <div class="max-w-7xl mx-auto px-4 py-3.5 flex items-center justify-between gap-4">
+      <a href="index.html" class="flex items-center gap-2">
+        <div class="bg-indigo-600 text-white p-2 rounded-xl">
+          <i class="fa-solid fa-arrow-left text-xl"></i>
+        </div>
+        <span class="font-extrabold text-2xl tracking-tight text-white">Voltar à Loja</span>
+      </a>
+      <div class="flex items-center gap-3">
+        <!-- Carrinho (o contador sobe quando o cliente adiciona aqui) -->
+        <a href="index.html?cart=open" class="relative bg-slate-800 hover:bg-slate-700 px-3.5 py-2 rounded-xl border border-slate-700 transition flex items-center gap-2 text-slate-200">
+          <i class="fa-solid fa-bag-shopping text-indigo-400"></i> Carrinho
+          <span id="cartCount" class="absolute -top-2 -right-2 bg-indigo-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">0</span>
+        </a>
+        <a href="index.html" class="bg-slate-800 hover:bg-slate-700 px-3.5 py-2 rounded-xl border border-slate-700 transition hidden sm:flex items-center gap-2 text-slate-200">
+          <i class="fa-solid fa-store text-indigo-400"></i> Ver Catálogo
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-4 py-8 flex-1 w-full">
+    <div id="loading" class="text-sm text-slate-500">Carregando produto...</div>
+    <div id="erro" class="hidden text-sm text-red-600 font-bold bg-red-50 border border-red-200 rounded-xl p-4"></div>
+
+    <!-- Produto -->
+    <div id="produto" class="hidden">
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 p-6">
+          <!-- Fotos -->
+          <div>
+            <div class="bg-slate-50 rounded-xl overflow-hidden aspect-square flex items-center justify-center">
+              <img id="mainImg" src="" alt="Foto do produto" referrerpolicy="no-referrer"
+                   fetchpriority="high" decoding="async"
+                   onerror="aoFalharImagem(this)"
+                   class="max-h-full max-w-full object-contain cursor-zoom-in" onclick="toggleZoom()">
+            </div>
+            <p class="text-[11px] text-slate-400 mt-2 text-center"><i class="fa-solid fa-magnifying-glass-plus"></i> Clique na foto para ampliar</p>
+            <div id="thumbs" class="flex flex-wrap gap-2 mt-3"></div>
+          </div>
+
+          <!-- Infos -->
+          <div class="flex flex-col">
+            <h1 id="pNome" class="text-2xl font-extrabold text-slate-900"></h1>
+            <div id="pRating" class="flex items-center gap-2 mt-2 text-sm hidden">
+              <span id="pStars" class="text-amber-400"></span>
+              <span id="pRatingVal" class="font-bold text-slate-700">0.0</span>
+              <a href="#avalWrap" id="pReviews" class="text-slate-500 text-xs hover:underline"></a>
+            </div>
+            <div class="mt-4">
+              <span id="pPreco" class="text-3xl font-extrabold text-slate-900"></span>
+              <span id="pOld" class="ml-2 text-sm text-slate-400 line-through hidden"></span>
+            </div>
+            <p class="text-sm text-slate-600 mt-3 whitespace-pre-wrap" id="pDesc"></p>
+
+            <!-- Tamanhos (só aparece para roupas com tamanhos cadastrados) -->
+            <div id="sizeWrap" class="hidden mt-4">
+              <p class="text-sm font-bold text-slate-700 mb-2">Tamanho: <span id="sizeSelected" class="text-indigo-600"></span></p>
+              <div id="sizeOptions" class="flex flex-wrap gap-2"></div>
+              <p id="sizeHint" class="text-xs text-rose-500 mt-1.5 hidden">Escolha um tamanho para continuar.</p>
+            </div>
+
+            <!-- Ações: primeiro o carrinho, depois a compra direta -->
+            <div class="mt-6 flex flex-wrap gap-3">
+              <button id="btnAddCart" onclick="adicionarAoCarrinho()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-5 py-3 rounded-xl transition flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                <i class="fa-solid fa-cart-plus"></i> Adicionar ao Carrinho
+              </button>
+              <button id="btnComprar" onclick="comprar()" class="bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold px-5 py-3 rounded-xl transition flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                <i class="fa-brands fa-whatsapp"></i> Comprar direto no WhatsApp
+              </button>
+            </div>
+
+            <!-- Confirmação do carrinho (substitui o alert travado) -->
+            <div id="addFeedback" class="hidden mt-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm font-bold px-4 py-3 rounded-xl flex flex-wrap items-center justify-between gap-3">
+              <span id="addFeedbackText"><i class="fa-solid fa-circle-check"></i> Produto adicionado ao carrinho!</span>
+              <a href="index.html?cart=open" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-1.5 rounded-lg text-xs whitespace-nowrap">Ver Carrinho <i class="fa-solid fa-caret-right"></i></a>
+            </div>
+
+            <a href="index.html" class="mt-4 text-xs text-indigo-600 hover:underline self-start"><i class="fa-solid fa-caret-left"></i> Continuar comprando na vitrine</a>
+
+            <div class="mt-6 bg-slate-50 border border-slate-200 rounded-xl p-4 text-xs text-slate-600">
+              <div><i class="fa-solid fa-truck"></i> Frete grátis para todo o Brasil</div>
+              <div class="mt-1"><i class="fa-solid fa-credit-card"></i> Aceitamos PIX</div>
+              <div class="mt-1"><i class="fa-solid fa-shield-halved"></i> Compra segura</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Avaliações -->
+      <div id="avalWrap" class="mt-8 hidden">
+        <h2 class="text-xl font-bold text-slate-900 mb-4">Avaliações dos clientes <span id="avalCount" class="text-sm font-normal text-slate-500">(reais)</span></h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4" id="reviewsGrid"></div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Modal de zoom -->
+  <div id="zoomModal" class="fixed inset-0 bg-slate-950/90 hidden z-50 flex items-center justify-center p-4" onclick="fecharZoom()">
+    <div class="relative max-h-full max-w-full" onclick="event.stopPropagation()">
+      <button onclick="fecharZoom()" aria-label="Fechar" class="absolute -top-10 right-0 text-white text-xl"><i class="fa-solid fa-xmark"></i></button>
+      <img id="zoomImg" src="" alt="Foto ampliada" referrerpolicy="no-referrer" class="max-h-[90vh] max-w-[95vw] object-contain">
+    </div>
+  </div>
+
+  <script>
+    const params = new URLSearchParams(location.search);
+    const pid = params.get('id');
+    let produtoAtual = null;
+    let atualImg = '';
+    let tamanhoSelecionado = null;
+
+    const PLACEHOLDER = 'data:image/svg+xml;utf8,' + encodeURIComponent(
+      '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400">' +
+      '<rect width="400" height="400" fill="#f1f5f9"/>' +
+      '<text x="200" y="205" text-anchor="middle" font-family="sans-serif" font-size="18" fill="#94a3b8">Imagem indisponível</text>' +
+      '</svg>'
+    );
+
+    function esc(v) {
+      return String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+
+    // "Categoria: X." nunca chega ao cliente (o valor vinha bugado da origem).
+    function limparDesc(v) {
+      return String(v ?? '').replace(/\s*Categoria:[^.]*(\.|$)/gi, ' ').replace(/\s+/g, ' ').trim();
+    }
+
+    // aceita 129.9, "129,90", "129" — e devolve NaN quando é lixo
+    function num(v) {
+      if (v === null || v === undefined) return NaN;
+      if (typeof v === 'number') return v;
+      const s = String(v).trim().replace(',', '.');
+      return s ? Number(s) : NaN;
+    }
+
+    function brl(v) {
+      const n = num(v);
+      return Number.isFinite(n) ? 'R$ ' + n.toFixed(2) : 'Preço indisponível';
+    }
+
+    // Falha de imagem (CDN bloqueando ou produto removido) não quebra o layout.
+    function aoFalharImagem(img) {
+      if (!img || img.getAttribute('src') === PLACEHOLDER) return;
+      img.src = PLACEHOLDER;
+    }
+
+    // ----- Carrinho -----------------------------------------------------------
+    // Guarda só o necessário: id, nome, preço, imagem e quantidade. As
+    // avaliações NÃO entram (senão o carrinho e o pedido ficariam gigantes).
+    function paraItemCarrinho(prod, qty, size) {
+      return {
+        id: prod.id,
+        name: String(prod.name || 'Produto'),
+        price: num(prod.price),
+        image: String(prod.image || ''),
+        qty: qty || 1,
+        size: size || null
+      };
+    }
+
+    function lerCarrinho() {
+      try {
+        const bruto = JSON.parse(localStorage.getItem('nexus_cart') || '[]');
+        if (!Array.isArray(bruto)) return [];
+        return bruto
+          .filter(i => i && typeof i === 'object')
+          .map(i => {
+            const preco = num(i.price);
+            if (!Number.isFinite(preco)) return null;
+            return {
+              id: i.id,
+              name: String(i.name || 'Produto'),
+              price: preco,
+              image: String(i.image || ''),
+              qty: Math.max(1, Math.floor(num(i.qty) || 1)),
+              size: (i.size === null || i.size === undefined || i.size === '') ? null : String(i.size)
+            };
+          })
+          .filter(Boolean);
+      } catch (e) {
+        return [];
+      }
+    }
+
+    function gravarCarrinho(cart) {
+      try {
+        localStorage.setItem('nexus_cart', JSON.stringify(cart));
+        return true;
+      } catch (e) {
+        return false; // cheio / modo privado
+      }
+    }
+
+    function atualizarBadgeCarrinho() {
+      const el = document.getElementById('cartCount');
+      if (el) el.textContent = lerCarrinho().reduce((a, b) => a + b.qty, 0);
+    }
+
+    function adicionarAoCarrinho() {
+      if (!produtoAtual) return;
+
+      const tamanhos = Array.isArray(produtoAtual.sizes) ? produtoAtual.sizes : [];
+      if (tamanhos.length && !tamanhoSelecionado) {
+        alert('Escolha um tamanho antes de adicionar ao carrinho.');
+        document.getElementById('sizeHint').classList.remove('hidden');
+        return;
+      }
+
+      const preco = num(produtoAtual.price);
+      if (!Number.isFinite(preco)) {
+        alert('Esse produto está sem preço cadastrado e não pode ser adicionado.');
+        return;
+      }
+
+      const cart = lerCarrinho();
+      const item = cart.find(c => String(c.id) === String(produtoAtual.id) && (c.size || '') === (tamanhoSelecionado || ''));
+      if (item) item.qty += 1;
+      else cart.push(paraItemCarrinho(produtoAtual, 1, tamanhoSelecionado));
+
+      if (!gravarCarrinho(cart)) {
+        alert('Não foi possível salvar o carrinho (armazenamento do navegador cheio ou bloqueado).');
+        return;
+      }
+
+      atualizarBadgeCarrinho();
+
+      const fb = document.getElementById('addFeedback');
+      const qtd = cart.reduce((a, b) => a + b.qty, 0);
+      document.getElementById('addFeedbackText').innerHTML =
+        '<i class="fa-solid fa-circle-check"></i> Adicionado! (' + qtd + (qtd === 1 ? ' item' : ' itens') + ' no carrinho)';
+      fb.classList.remove('hidden');
+      fb.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+
+    function selecionarTamanho(s) {
+      tamanhoSelecionado = s;
+      document.getElementById('sizeSelected').textContent = s;
+      document.querySelectorAll('.sizeBtn').forEach(b => {
+        const sel = b.dataset.size === s;
+        b.classList.toggle('bg-indigo-600', sel);
+        b.classList.toggle('text-white', sel);
+        b.classList.toggle('border-indigo-600', sel);
+        if (sel) { b.classList.remove('border-slate-300'); } else { b.classList.add('border-slate-300'); }
+      });
+      document.getElementById('sizeHint').classList.add('hidden');
+      document.getElementById('btnAddCart').disabled = false;
+      document.getElementById('btnComprar').disabled = false;
+    }
+
+    // ----- Zoom ---------------------------------------------------------------
+    function abrirZoom(u) {
+      if (!u) return;
+      atualImg = u;
+      document.getElementById('zoomImg').src = u;
+      document.getElementById('zoomModal').classList.remove('hidden');
+    }
+
+    function fecharZoom() {
+      document.getElementById('zoomModal').classList.add('hidden');
+    }
+
+    function toggleZoom() {
+      const m = document.getElementById('zoomModal');
+      if (m.classList.contains('hidden')) abrirZoom(atualImg);
+      else fecharZoom();
+    }
+
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape') fecharZoom();
+    });
+
+    function setImagem(u) {
+      if (!u) return;
+      const img = document.getElementById('mainImg');
+      img.src = u;
+      atualImg = u;
+      document.getElementById('zoomImg').src = u;
+    }
+
+    // ----- Carregamento -------------------------------------------------------
+    async function carregar() {
+      const mostrarErro = msg => {
+        document.getElementById('loading').classList.add('hidden');
+        const e = document.getElementById('erro');
+        e.textContent = msg;
+        e.classList.remove('hidden');
+      };
+
+      if (!pid) return mostrarErro('Produto não informado. Volte à loja e escolha um produto.');
+
+      let produto = null;
+      let erroBanco = null;
+
+      if (initSupabase()) {
+        try {
+          const { data, error } = await supabaseClient.from('products').select('*').eq('id', pid).maybeSingle();
+          if (error) erroBanco = 'Falha no banco: ' + error.message;
+          produto = data || null;
+        } catch (e) {
+          erroBanco = 'Sem conexão com o banco (' + (e && e.message ? e.message : 'rede indisponível') + ').';
+        }
+      }
+
+      // Fallback: produtos publicados sem Supabase (localStorage)
+      if (!produto) {
+        try {
+          const lista = JSON.parse(localStorage.getItem('drop_products') || '[]');
+          produto = Array.isArray(lista) ? lista.find(p => String(p.id) === String(pid)) || null : null;
+        } catch (e) {
+          produto = null;
+        }
+      }
+
+      if (!produto) {
+        return mostrarErro(
+          erroBanco
+            ? erroBanco + ' Verifique sua conexão e recarregue (F5).'
+            : 'Produto não encontrado. Volte à loja e escolha outro.'
+        );
+      }
+
+      produtoAtual = produto;
+      tamanhoSelecionado = null;
+
+      // Seletor de tamanho (roupas)
+      const sizes = Array.isArray(produto.sizes) ? produto.sizes : [];
+      const sizeWrap = document.getElementById('sizeWrap');
+      if (sizes.length) {
+        sizeWrap.classList.remove('hidden');
+        const opts = document.getElementById('sizeOptions');
+        opts.innerHTML = sizes.map(s => `<button type="button" data-size="${esc(s)}" class="sizeBtn px-4 py-2 rounded-xl border border-slate-300 text-sm font-bold hover:border-indigo-500 hover:text-indigo-600 transition">${esc(s)}</button>`).join('');
+        opts.querySelectorAll('.sizeBtn').forEach(b => {
+          b.addEventListener('click', () => selecionarTamanho(b.dataset.size));
+        });
+        document.getElementById('sizeSelected').textContent = '';
+        document.getElementById('sizeHint').classList.add('hidden');
+        // Desabilita as ações até o cliente escolher um tamanho.
+        document.getElementById('btnAddCart').disabled = true;
+        document.getElementById('btnComprar').disabled = true;
+      } else {
+        sizeWrap.classList.add('hidden');
+        document.getElementById('btnAddCart').disabled = false;
+        document.getElementById('btnComprar').disabled = false;
+      }
+
+      document.title = (produto.name || 'Produto') + ' | NexusDrop';
+      document.getElementById('pNome').textContent = produto.name || 'Produto';
+      document.getElementById('pPreco').textContent = brl(produto.price);
+      document.getElementById('pDesc').textContent = limparDesc(produto.description);
+
+      const preco = num(produto.price);
+      const precoAntigo = num(produto.oldPrice);
+      if (Number.isFinite(precoAntigo) && Number.isFinite(preco) && precoAntigo > preco) {
+        document.getElementById('pOld').textContent = brl(precoAntigo);
+        document.getElementById('pOld').classList.remove('hidden');
+      }
+
+      // Avaliações reais salvas junto do produto
+      const avals = Array.isArray(produto.avaliacoes) ? produto.avaliacoes : [];
+
+      // Nota: usa a do produto; se não houver, calcula pela média das avaliações reais.
+      let nota = num(produto.rating);
+      if (!Number.isFinite(nota) || nota <= 0) {
+        const notas = avals.map(r => num(r && r.nota)).filter(n => Number.isFinite(n) && n > 0);
+        nota = notas.length ? notas.reduce((a, b) => a + b, 0) / notas.length : NaN;
+      }
+
+      // Quantidade: a contagem salva pode vir 0 (a busca do AliExpress não traz
+      // esse dado). Nesse caso usamos o total de avaliações reais que temos —
+      // o cliente NUNCA vê "0 avaliações".
+      const revSalvo = num(produto.reviews);
+      const qtdAval = (Number.isFinite(revSalvo) && revSalvo > 0) ? revSalvo : avals.length;
+
+      if (Number.isFinite(nota) && nota > 0) {
+        document.getElementById('pRating').classList.remove('hidden');
+        document.getElementById('pRatingVal').textContent = nota.toFixed(1);
+
+        const cheias = Math.max(0, Math.min(5, Math.round(nota)));
+        document.getElementById('pStars').innerHTML = Array(5).fill(0)
+          .map((_, i) => `<i class="fa${i < cheias ? '-solid' : '-regular'} fa-star"></i>`)
+          .join('');
+
+        const link = document.getElementById('pReviews');
+        if (qtdAval > 0) {
+          link.textContent = '(' + qtdAval.toLocaleString('pt-BR') + (qtdAval === 1 ? ' avaliação' : ' avaliações') + ')';
+          link.style.display = '';
+        } else {
+          link.textContent = '';
+          link.style.display = 'none';
+        }
+      }
+
+      // Foto principal + miniaturas das fotos dos clientes
+      setImagem(produto.image);
+
+      const thumbs = document.getElementById('thumbs');
+      thumbs.innerHTML = '';
+      const fotosVistas = new Set();
+
+      for (const r of avals) {
+        for (const foto of (Array.isArray(r.fotos) ? r.fotos : []).slice(0, 3)) {
+          if (typeof foto !== 'string' || !foto || fotosVistas.has(foto)) continue;
+          fotosVistas.add(foto);
+
+          const b = document.createElement('button');
+          b.className = 'border border-slate-200 rounded-lg overflow-hidden h-16 w-16 flex items-center justify-center bg-white hover:border-indigo-400';
+          b.title = 'Ver foto';
+
+          const im = document.createElement('img');
+          im.referrerPolicy = 'no-referrer';
+          im.loading = 'lazy';
+          im.decoding = 'async';
+          im.alt = 'Foto de cliente';
+          im.onerror = () => aoFalharImagem(im);
+          im.src = foto;
+          im.className = 'max-h-full max-w-full object-contain';
+
+          b.appendChild(im);
+          b.onclick = () => setImagem(foto);
+          thumbs.appendChild(b);
+        }
+      }
+
+      // Avaliações com texto
+      if (avals.length) {
+        document.getElementById('avalWrap').classList.remove('hidden');
+        document.getElementById('avalCount').textContent =
+          '(' + avals.length + (qtdAval > avals.length ? ' de ' + qtdAval.toLocaleString('pt-BR') : '') + ' avaliações)';
+
+        const grid = document.getElementById('reviewsGrid');
+        grid.innerHTML = avals.slice(0, 20).map(r => {
+          const estrelas = Number(r.nota) > 0
+            ? '<div class="mt-1">' + Array(5).fill(0).map((_, i) =>
+                `<i class="fa${Number(r.nota) > i ? '-solid' : '-regular'} fa-star text-amber-400"></i>`
+              ).join('') + '</div>'
+            : '';
+
+          const imgs = (Array.isArray(r.fotos) ? r.fotos : [])
+            .filter(f => typeof f === 'string' && f)
+            .map(f => `<img src="${esc(f)}" data-foto="${esc(f)}" alt="Foto de cliente" referrerpolicy="no-referrer" loading="lazy" decoding="async" onerror="aoFalharImagem(this)" class="h-16 w-16 object-contain border border-slate-200 rounded-lg cursor-zoom-in bg-white hover:border-indigo-400">`)
+            .join('');
+
+          return `<div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+            <div class="flex items-center justify-between gap-2 text-xs text-slate-500">
+              <span class="font-bold text-slate-800">${esc(r.autor)} ${r.pais ? '(' + esc(r.pais) + ')' : ''}</span>
+              <span class="whitespace-nowrap">${esc(r.data)}</span>
+            </div>
+            ${estrelas}
+            ${r.texto ? `<p class="text-sm text-slate-700 mt-2 whitespace-pre-wrap">${esc(r.texto)}</p>` : ''}
+            ${imgs ? `<div class="flex flex-wrap gap-2 mt-2">${imgs}</div>` : ''}
+            ${r.variacao ? `<div class="text-[11px] text-slate-400 mt-1">Variação: ${esc(r.variacao)}</div>` : ''}
+            ${Number(r.util) > 0 ? `<div class="text-[11px] text-slate-500 mt-1"><i class="fa-regular fa-thumbs-up"></i> ${Number(r.util)} acharam útil</div>` : ''}
+          </div>`;
+        }).join('');
+
+        // Clicar na foto da avaliação abre já ampliada (sem embutir URL no onclick)
+        grid.querySelectorAll('img[data-foto]').forEach(im => {
+          im.addEventListener('click', () => abrirZoom(im.getAttribute('data-foto')));
+        });
+      }
+
+      document.getElementById('loading').classList.add('hidden');
+      document.getElementById('produto').classList.remove('hidden');
+    }
+
+    function comprar() {
+      if (!produtoAtual) return;
+
+      const tamanhos = Array.isArray(produtoAtual.sizes) ? produtoAtual.sizes : [];
+      if (tamanhos.length && !tamanhoSelecionado) {
+        alert('Escolha um tamanho antes de comprar.');
+        document.getElementById('sizeHint').classList.remove('hidden');
+        return;
+      }
+
+      const preco = num(produtoAtual.price);
+      const linhaValor = Number.isFinite(preco) ? '\nValor: ' + brl(preco) : '';
+      const linhaTam = tamanhoSelecionado ? '\nTamanho: ' + tamanhoSelecionado : '';
+      const msg = `*NOVO PEDIDO*\n\nQuero comprar: *${produtoAtual.name}*${linhaTam}${linhaValor}\nLink: ${location.href}`;
+      window.open(`https://wa.me/${SEU_WHATSAPP}?text=${encodeURIComponent(msg)}`, '_blank');
+    }
+
+    function iniciarProduto() {
+      initSupabase();
+      atualizarBadgeCarrinho();
+      carregar();
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', iniciarProduto);
+    } else {
+      iniciarProduto();
+    }
+  </script>
+</body>
+</html>

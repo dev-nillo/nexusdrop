@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="NexusDrop - Loja Oficial. Produtos selecionados com envio para todo o Brasil.">
+  <meta name="theme-color" content="#4f46e5">
+  <title>NexusDrop - Loja Oficial</title>
+
+  <!-- Conexões antecipadas: economizam tempo de DNS/TLS em cada recurso externo -->
+  <link rel="preconnect" href="https://cdn.tailwindcss.com">
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link rel="preconnect" href="https://ofktrfgwbrzewftjewze.supabase.co" crossorigin>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="dns-prefetch" href="https://ae-pic-a1.aliexpress-media.com">
+  <link rel="preconnect" href="https://ae-pic-a1.aliexpress-media.com">
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Fonte sem @import (que bloqueia a renderização) -->
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+  <!-- SDK do Supabase entra com `defer`: não segura a pintura da página -->
+  <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    body { font-family: 'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI', sans-serif; }
+    /* Cards fora da tela não custam pintura (economiza CPU no celular) */
+    .cv-card { content-visibility: auto; contain-intrinsic-size: auto 420px; }
+  </style>
+</head>
+<body class="bg-gray-50 text-gray-800 flex flex-col min-h-screen">
+
+  <script>
+    // Configurações do Supabase e WhatsApp
+    // URL base corrigida (sem /rest/v1/, o SDK já acrescenta esse caminho)
+    const SUPABASE_URL = 'https://ofktrfgwbrzewftjewze.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_lBDn3j8kduTfeAtkRpgWLw_Mubzm1IF'; // <--- COLE SUA CHAVE ANON AQUI
+    const SEU_WHATSAPP = "5513991234992";
+
+    // O SDK do Supabase é carregado com `defer` (depois de a página pintar),
+    // então o cliente é criado na primeira vez que for realmente necessário.
+    let supabaseClient = null;
+    function initSupabase() {
+      if (!supabaseClient && window.supabase) {
+        try { supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY); } catch (e) { supabaseClient = null; }
+      }
+      return supabaseClient;
+    }
+  </script>
+
+  <!-- Topbar -->
+  <div class="bg-indigo-600 text-white text-center py-2 text-xs font-bold">
+    🚀 FRETE GRÁTIS PARA TODO O BRASIL | DESCONTO NO PIX
+  </div>
+
+  <!-- Header -->
+  <header class="bg-slate-900 text-white sticky top-0 z-40 shadow-xl">
+    <div class="max-w-7xl mx-auto px-4 py-3.5 flex flex-wrap items-center justify-between gap-3">
+      <div class="flex items-center gap-2">
+        <div class="bg-indigo-600 text-white p-2 rounded-xl">
+          <i class="fa-solid fa-cube text-xl"></i>
+        </div>
+        <span class="font-extrabold text-2xl tracking-tight text-white">NexusDrop</span>
+      </div>
+
+      <!-- Busca na loja (tolerante a erros de digitação) -->
+      <div class="order-3 w-full sm:order-none sm:flex-1 sm:max-w-md sm:mx-3">
+        <div class="relative">
+          <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 text-sm"></i>
+          <input type="search" id="buscaLoja" oninput="onBusca(this.value)" autocomplete="off"
+            placeholder="O que você procura? Ex: fone bluetooth"
+            class="w-full bg-slate-800 border border-slate-700 rounded-xl pl-10 pr-9 py-2.5 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition">
+          <button type="button" onclick="limparBusca()" id="buscaLimpar" title="Limpar busca"
+            class="hidden absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white transition">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- User Bar / Cadastro Rápido -->
+      <div class="flex items-center gap-3">
+        <button onclick="toggleAuthModal()" id="userBtn" class="text-xs bg-slate-800 hover:bg-slate-700 px-3.5 py-2 rounded-xl border border-slate-700 transition flex items-center gap-2 text-slate-200">
+          <i class="fa-solid fa-user text-indigo-400"></i> <span id="userNameDisplay">Entrar / Cadastro Rápido</span>
+        </button>
+
+        <button onclick="toggleCartModal()" class="relative bg-slate-800 hover:bg-slate-700 p-2.5 rounded-full border border-slate-700 transition">
+          <i class="fa-solid fa-bag-shopping text-lg text-indigo-400"></i>
+          <span id="cartCount" class="absolute -top-1 -right-1 bg-indigo-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">0</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Catálogo -->
+  <main class="max-w-7xl mx-auto px-4 py-8 flex-1 w-full">
+    <div class="flex items-center justify-between flex-wrap gap-2 mb-6">
+      <h1 class="text-2xl font-bold text-slate-900">Produtos em Destaque</h1>
+      <p id="buscaStatus" class="hidden text-sm text-slate-500"></p>
+    </div>
+    <div id="storeProductsGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6"></div>
+  </main>
+
+  <!-- Modal Cadastro Rápido -->
+  <div id="authModal" class="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white w-full max-w-md rounded-2xl p-6 shadow-2xl relative">
+      <button onclick="toggleAuthModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-lg"></i></button>
+      <h2 class="text-xl font-bold text-slate-900 mb-1">Cadastro Rápido</h2>
+      <p class="text-xs text-slate-500 mb-4">Preencha apenas uma vez para facilitar suas compras.</p>
+
+      <form id="quickAuthForm" onsubmit="saveQuickUser(event)" class="space-y-3 text-xs">
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">Nome Completo *</label>
+          <input type="text" id="custName" required placeholder="Ex: João Silva" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-slate-800 focus:outline-none focus:border-indigo-500">
+        </div>
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">WhatsApp / Telefone *</label>
+          <input type="tel" id="custPhone" required placeholder="(13) 99123-4992" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-slate-800 focus:outline-none focus:border-indigo-500">
+        </div>
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">E-mail *</label>
+          <input type="email" id="custEmail" required placeholder="seuemail@exemplo.com" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-slate-800 focus:outline-none focus:border-indigo-500">
+        </div>
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">Endereço Completo de Entrega *</label>
+          <textarea id="custAddress" required placeholder="Rua, Número, Bairro, Cidade - Estado, CEP" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-slate-800 focus:outline-none focus:border-indigo-500 h-20"></textarea>
+        </div>
+
+        <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl transition text-sm">
+          Salvar Dados e Continuar
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal Carrinho -->
+  <div id="cartModal" class="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-50 hidden flex justify-end">
+    <div class="bg-white w-full max-w-md h-full flex flex-col shadow-2xl">
+      <div class="p-4 bg-slate-900 text-white flex justify-between items-center">
+        <h2 class="font-bold flex items-center gap-2 text-sm"><i class="fa-solid fa-cart-shopping text-indigo-400"></i> Carrinho</h2>
+        <button onclick="toggleCartModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+      </div>
+
+      <div id="cartItems" class="flex-1 overflow-y-auto p-4 space-y-4"></div>
+
+      <div class="p-4 border-t bg-slate-50 space-y-3">
+        <div class="flex justify-between items-center">
+          <span class="text-slate-600 text-sm font-medium">Total:</span>
+          <span id="cartTotal" class="text-xl font-bold text-slate-900">R$ 0,00</span>
+        </div>
+
+        <button onclick="finishOrder()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl transition text-sm flex items-center justify-center gap-2">
+          <i class="fa-brands fa-whatsapp text-lg"></i> Finalizar Pedido
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let cart = [];
+    let catalog = []; // produtos carregados na vitrine (fonte do carrinho)
+    let currentUser = JSON.parse(localStorage.getItem('nexus_user') || 'null');
+
+    // aceita 129.9, "129,90", "129" — e devolve NaN quando é lixo
+    function num(v) {
+      if (v === null || v === undefined) return NaN;
+      if (typeof v === 'number') return v;
+      const s = String(v).trim().replace(',', '.');
+      return s ? Number(s) : NaN;
+    }
+
+    function brl(v) {
+      const n = num(v);
+      return 'R$ ' + (Number.isFinite(n) ? n.toFixed(2) : '0,00');
+    }
+
+    // Item do carrinho guarda só o necessário: id, nome, preço, imagem e qtd.
+    // As avaliações NÃO entram (o pedido ficaria gigante e o carrinho, lento).
+    function normalizarItem(i) {
+      if (!i || typeof i !== 'object') return null;
+      const preco = num(i.price);
+      if (!Number.isFinite(preco) || preco < 0) return null;
+      const id = i.id;
+      if (id === null || id === undefined || id === '') return null;
+      return {
+        id,
+        name: String(i.name || 'Produto'),
+        price: preco,
+        image: String(i.image || ''),
+        qty: Math.max(1, Math.floor(num(i.qty) || 1)),
+        size: (i.size === null || i.size === undefined || i.size === '') ? null : String(i.size)
+      };
+    }
+
+    // Carrega carrinho persistido (vindo da página de detalhes) sem derrubar a
+    // página se o localStorage estiver corrompido ou vindo de outra versão.
+    function carregarCarrinho() {
+      let bruto = [];
+      try {
+        const salvo = JSON.parse(localStorage.getItem('nexus_cart') || '[]');
+        bruto = Array.isArray(salvo) ? salvo : [];
+      } catch (e) {
+        bruto = [];
+      }
+      cart = bruto.map(normalizarItem).filter(Boolean);
+      updateCart();
+    }
+
+    // Textos vindos do banco (nomes de produtos importados) nunca entram no HTML sem escape.
+    function esc(v) {
+      return String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+
+    // "Categoria: X." nunca chega ao cliente (o valor vinha bugado da origem).
+    function limparDesc(v) {
+      return String(v ?? '').replace(/\s*Categoria:[^.]*(\.|$)/gi, ' ').replace(/\s+/g, ' ').trim();
+    }
+
+    function checkUserUI() {
+      if (currentUser) {
+        document.getElementById('userNameDisplay').innerText = `Olá, ${currentUser.name.split(' ')[0]}`;
+      }
+    }
+
+    function toggleAuthModal() {
+      document.getElementById('authModal').classList.toggle('hidden');
+    }
+
+    function toggleCartModal() {
+      document.getElementById('cartModal').classList.toggle('hidden');
+    }
+
+    function saveQuickUser(e) {
+      e.preventDefault();
+      currentUser = {
+        name: document.getElementById('custName').value,
+        phone: document.getElementById('custPhone').value,
+        email: document.getElementById('custEmail').value,
+        address: document.getElementById('custAddress').value
+      };
+      localStorage.setItem('nexus_user', JSON.stringify(currentUser));
+      checkUserUI();
+      toggleAuthModal();
+      alert('Cadastro realizado com sucesso!');
+    }
+
+    async function loadProducts() {
+      // 1) Pinta na hora o que já foi salvo na última visita (se houver).
+      //    A loja aparece instantânea, sem esperar a rede.
+      if (catalog.length === 0) {
+        try {
+          const local = JSON.parse(localStorage.getItem('drop_products') || '[]');
+          if (Array.isArray(local) && local.length > 0) {
+            catalog = local;
+            renderGrid();
+          }
+        } catch (e) {}
+      }
+
+      // 2) Busca a lista atualizada no banco.
+      let products = [];
+      if (initSupabase()) {
+        try {
+          // Só as colunas que a vitrine usa. `avaliacoes` (textos pesados) fica fora.
+          let { data, error } = await supabaseClient
+            .from('products')
+            .select('id,name,price,image,description,category,rating,reviews,sizes')
+            .order('id', { ascending: true });
+          if (error) {
+            // Se alguma coluna não existir, busca tudo (mais pesado, mas funciona).
+            const alt = await supabaseClient.from('products').select('*');
+            data = alt.data;
+          }
+          if (data && data.length > 0) products = data;
+        } catch (e) {
+          products = [];
+        }
+      }
+
+      // 3) Sem resposta do servidor? Mantém o que já está na tela (cache).
+      if (products.length === 0) return;
+
+      catalog = products;
+      // Guarda para a próxima visita abrir instantaneamente.
+      try { localStorage.setItem('drop_products', JSON.stringify(products)); } catch (e) {}
+      renderGrid();
+    }
+
+    // ================= Busca da vitrine (tolerante a erros) =================
+    let queryBusca = '';
+    let timerBusca = null;
+    let qtdVisivel = 60; // quantos cards desenhar por vez (botão "Ver mais")
+
+    // Minúsculas, sem acentos e sem pontuação — "Fone-Bluetooth" vira "fone bluetooth".
+    function normalizarTxt(v) {
+      return String(v ?? '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+    }
+
+    // Distância de edição (Damerau-Levenshtein simplificado) com limite:
+    // aceita letra trocada, a mais, a menos — mas corta cedo quando já passou do máximo.
+    function distEdicao(a, b, max) {
+      if (a === b) return 0;
+      const la = a.length, lb = b.length;
+      if (Math.abs(la - lb) > max) return max + 1;
+      let p2 = null, p1 = [], cur = [];
+      for (let j = 0; j <= lb; j++) p1[j] = j;
+      for (let i = 1; i <= la; i++) {
+        cur[0] = i;
+        let melhor = cur[0];
+        for (let j = 1; j <= lb; j++) {
+          const custo = a[i - 1] === b[j - 1] ? 0 : 1;
+          cur[j] = Math.min(p1[j] + 1, cur[j - 1] + 1, p1[j - 1] + custo);
+          // letra vizinha digitada na ordem trocada ("gmaer" no lugar de "gamer")
+          if (i > 1 && j > 1 && p2 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) {
+            cur[j] = Math.min(cur[j], p2[j - 2] + 1);
+          }
+          if (cur[j] < melhor) melhor = cur[j];
+        }
+        if (melhor > max) return max + 1;
+        p2 = p1; p1 = cur; cur = [];
+      }
+      return p1[lb];
+    }
+
+    // Quão bem um termo digitado casa com um termo do produto (3 = exato, 2 = prefixo, 1 = erro de digitação).
+    function combinarTermo(q, t) {
+      if (q === t) return 3;
+      if (t.startsWith(q) || q.startsWith(t)) return 2;
+      const maxDist = q.length <= 3 ? 0 : q.length <= 6 ? 1 : 2;
+      if (maxDist > 0 && distEdicao(q, t, maxDist) <= maxDist) return 1;
+      return 0;
+    }
+
+    function pontuarProduto(p, termos) {
+      const nome = normalizarTxt(p.name).split(' ').filter(Boolean);
+      const resto = (normalizarTxt(p.description) + ' ' + normalizarTxt(p.category)).split(' ').filter(Boolean);
+      let pontos = 0;
+      for (const q of termos) {
+        let melhor = 0;
+        for (const t of nome) { const c = combinarTermo(q, t); if (c > melhor) melhor = c; }
+        if (melhor < 3) { // descrição/categoria valem menos que o nome
+          for (const t of resto) { const c = combinarTermo(q, t) * 0.6; if (c > melhor) melhor = c; }
+        }
+        if (melhor === 0) return 0; // todos os termos precisam casar (e não ou)
+        pontos += melhor;
+      }
+      return pontos;
+    }
+
+    function filtrarCatalogo(q) {
+      const limpo = normalizarTxt(q);
+      if (limpo.length < 2) return catalog;
+      const termos = limpo.split(' ').filter(Boolean);
+      return catalog
+        .map(p => ({ p, s: pontuarProduto(p, termos) }))
+        .filter(x => x.s > 0)
+        .sort((a, b) => b.s - a.s || (Number(b.p.reviews) || 0) - (Number(a.p.reviews) || 0))
+        .map(x => x.p);
+    }
+
+    function onBusca(valor) {
+      queryBusca = valor;
+      qtdVisivel = 60; // cada nova busca recomeça mostrando os primeiros 60
+      document.getElementById('buscaLimpar').classList.toggle('hidden', !valor);
+      clearTimeout(timerBusca);
+      timerBusca = setTimeout(renderGrid, 180); // debounce: só redesenha parou de digitar
+    }
+
+    function limparBusca() {
+      const inp = document.getElementById('buscaLoja');
+      inp.value = '';
+      onBusca('');
+      inp.focus();
+    }
+
+    function renderGrid() {
+      const grid = document.getElementById('storeProductsGrid');
+      const status = document.getElementById('buscaStatus');
+      const procurando = queryBusca.trim().length >= 2;
+      const lista = procurando ? filtrarCatalogo(queryBusca) : catalog;
+
+      status.classList.toggle('hidden', !procurando);
+      if (procurando) {
+        const q = esc(queryBusca.trim());
+        status.innerHTML = lista.length
+          ? `<i class="fa-solid fa-magnifying-glass mr-1"></i> ${lista.length} resultado${lista.length > 1 ? 's' : ''} para <b class="text-slate-700">“${q}”</b>`
+          : `Nenhum resultado para <b class="text-slate-700">“${q}”</b>`;
+      }
+
+      if (catalog.length === 0) {
+        grid.innerHTML = '<p class="col-span-full text-center text-sm text-slate-500 py-12">Nenhum produto disponível no momento.</p>';
+        return;
+      }
+
+      if (lista.length === 0) {
+        grid.innerHTML = '<p class="col-span-full text-center text-sm text-slate-500 py-12">😕 Nada encontrado por aqui. Tente uma palavra parecida — a busca aceita erros de digitação.</p>';
+        return;
+      }
+
+      // Desenha só um lote por vez (em vez de centenas de cards de uma vez).
+      const mostrando = lista.slice(0, qtdVisivel);
+
+      // Monta os cards numa string única e escreve de uma vez.
+      // (`innerHTML +=` dentro de loop é O(n²) e reinicia o download das imagens.)
+      let html = mostrando.map(p => `
+          <a href="produto.html?id=${esc(p.id)}" class="cv-card block bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-md transition">
+            <div class="p-4 flex flex-col justify-between h-full">
+              <div>
+                <img src="${esc(p.image)}" referrerpolicy="no-referrer" loading="lazy" decoding="async" alt="${esc(p.name)}" class="h-48 w-full object-cover rounded-xl mb-3 bg-slate-100">
+                <h3 class="font-bold text-slate-900 text-sm line-clamp-2">${esc(p.name)}</h3>
+                <p class="text-xs text-slate-500 mt-1 line-clamp-2">${esc(limparDesc(p.description))}</p>
+                ${Number(p.rating) > 0 ? `<div class="flex items-center gap-1 text-xs text-amber-500 mt-1.5"><i class="fa-solid fa-star"></i> ${Number(p.rating).toFixed(1)} ${Number(p.reviews) > 0 ? `<span class="text-slate-400">(${Number(p.reviews).toLocaleString('pt-BR')} avaliações)</span>` : ''}</div>` : ''}
+              </div>
+              <div class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
+                <span class="text-base font-extrabold text-slate-900">R$ ${Number(p.price).toFixed(2)}</span>
+                <span class="bg-indigo-600 text-white text-xs font-bold px-3 py-2 rounded-xl">Ver detalhes</span>
+              </div>
+            </div>
+          </a>
+        `).join('');
+
+      // Botão "Ver mais" (só aparece se ainda houver produtos escondidos).
+      if (lista.length > qtdVisivel) {
+        html += `
+          <div class="col-span-full flex justify-center pt-2">
+            <button id="btnVerMais" class="bg-white border border-slate-300 hover:border-indigo-500 hover:text-indigo-600 text-slate-700 text-sm font-bold px-6 py-3 rounded-xl transition">
+              Ver mais ${Math.min(60, lista.length - qtdVisivel)} produtos
+              <span class="text-slate-400 font-medium">(${mostrando.length} de ${lista.length})</span>
+            </button>
+          </div>`;
+      }
+
+      grid.innerHTML = html;
+
+      const btn = document.getElementById('btnVerMais');
+      if (btn) btn.addEventListener('click', () => { qtdVisivel += 60; renderGrid(); });
+    }
+
+    function addToCart(id) {
+      // O carrinho usa os produtos já carregados da vitrine (Supabase ou, na falta dele, o localStorage).
+      const prod = catalog.find(p => String(p.id) === String(id));
+      if (!prod) {
+        alert('Produto não encontrado. Recarregue a página (F5).');
+        return;
+      }
+
+      const novo = normalizarItem({ ...prod, qty: 1 });
+      if (!novo) {
+        alert('Esse produto está sem preço cadastrado e não pode ser adicionado.');
+        return;
+      }
+
+      const item = cart.find(c => String(c.id) === String(id) && (c.size || '') === (novo.size || ''));
+      if (item) item.qty++;
+      else cart.push(novo);
+
+      updateCart();
+      toggleCartModal();
+    }
+
+    function removerDoCarrinho(id) {
+      cart = cart.filter(c => String(c.id) !== String(id));
+      updateCart();
+    }
+
+    function updateCart() {
+      // Remove itens inválidos (ex.: salvo por uma versão antiga ou corrompido)
+      cart = cart.map(normalizarItem).filter(Boolean);
+
+      document.getElementById('cartCount').innerText = cart.reduce((a, b) => a + b.qty, 0);
+      const itemsDiv = document.getElementById('cartItems');
+      const total = cart.reduce((a, b) => a + (b.price * b.qty), 0);
+
+      if (cart.length === 0) {
+        itemsDiv.innerHTML = '<p class="text-center text-xs text-slate-400 py-10">Seu carrinho está vazio.<br>Abra um produto e clique em "Adicionar ao Carrinho".</p>';
+      } else {
+        itemsDiv.innerHTML = cart.map(i => `
+          <div class="flex items-center gap-3 bg-slate-50 p-2.5 rounded-xl text-xs">
+            <img src="${esc(i.image)}" referrerpolicy="no-referrer" onerror="this.style.visibility='hidden'" alt="" class="w-12 h-12 object-cover rounded-lg">
+            <div class="flex-1">
+              <p class="font-bold text-slate-800">${esc(i.name)}${i.size ? ` <span class="text-[10px] bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded">Tam: ${esc(i.size)}</span>` : ''}</p>
+              <p class="text-indigo-600 font-bold">${brl(i.price)} x ${i.qty}</p>
+              <button data-id="${esc(i.id)}" class="removerItem text-[11px] text-red-400 hover:text-red-600 hover:underline mt-0.5">
+                <i class="fa-solid fa-trash"></i> remover
+              </button>
+            </div>
+          </div>
+        `).join('');
+        // O id vai no data-id (nunca dentro do onclick) para não quebrar com nomes/ids estranhos.
+        itemsDiv.querySelectorAll('button.removerItem').forEach(b => {
+          b.addEventListener('click', () => removerDoCarrinho(b.dataset.id));
+        });
+      }
+
+      document.getElementById('cartTotal').innerText = brl(total);
+      try {
+        localStorage.setItem('nexus_cart', JSON.stringify(cart));
+      } catch (e) {
+        // armazenamento cheio/bloqueado: o carrinho continua valendo nesta sessão
+      }
+    }
+
+    async function finishOrder() {
+      if (cart.length === 0) return alert('Carrinho vazio!');
+      if (!currentUser) {
+        alert('Por favor, preencha o cadastro rápido antes de finalizar.');
+        toggleAuthModal();
+        return;
+      }
+
+      const total = cart.reduce((a, b) => a + (b.price * b.qty), 0);
+      const newOrder = {
+        id: 'PED-' + Math.floor(100000 + Math.random() * 900000),
+        customer: currentUser,
+        items: cart, // já enxutos: só id, nome, preço, imagem e quantidade
+        total: total,
+        date: new Date().toLocaleString('pt-BR'),
+        status: 'Pendente'
+      };
+
+      // Se o painel falhar, o pedido ainda sai no WhatsApp (canal principal).
+      if (supabaseClient) {
+        try {
+          const { error } = await supabaseClient.from('orders').insert([newOrder]);
+          if (error) console.warn('Pedido não salvo no painel:', error.message);
+        } catch (e) {
+          console.warn('Pedido não salvo no painel:', e);
+        }
+      } else {
+        try {
+          const orders = JSON.parse(localStorage.getItem('drop_orders') || '[]');
+          orders.push(newOrder);
+          localStorage.setItem('drop_orders', JSON.stringify(orders));
+        } catch (e) {}
+      }
+
+      let msg = `*NOVO PEDIDO #${newOrder.id}*\n\n👤 *Cliente:* ${currentUser.name}\n📞 *Whats:* ${currentUser.phone}\n📍 *Endereço:* ${currentUser.address}\n\n*Itens:*\n`;
+      cart.forEach(c => { const tam = c.size ? ' (Tam: ' + c.size + ')' : ''; msg += '- ' + c.qty + 'x ' + c.name + tam + ' (R$ ' + c.price.toFixed(2) + ')\n'; });
+      msg += `\n💰 *Total:* R$ ${total.toFixed(2)}`;
+
+      window.open(`https://wa.me/${SEU_WHATSAPP}?text=${encodeURIComponent(msg)}`, '_blank');
+      cart = [];
+      updateCart();
+      try { localStorage.removeItem('nexus_cart'); } catch (e) {}
+      toggleCartModal();
+      alert('Pedido enviado com sucesso!');
+    }
+
+    // DOMContentLoaded dispara assim que o HTML fica pronto — não espera as
+    // imagens/fontes como o antigo `window.onload`, então a vitrine aparece antes.
+    function iniciarLoja() {
+      initSupabase();
+      checkUserUI();
+      carregarCarrinho();
+      loadProducts();
+
+      // Vindo da página de detalhes (index.html?cart=open) já abre o carrinho.
+      const q = new URLSearchParams(location.search);
+      if (q.get('cart') === 'open') {
+        if (cart.length > 0) toggleCartModal();
+        try { history.replaceState(null, '', location.pathname); } catch (e) {}
+      }
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', iniciarLoja);
+    } else {
+      iniciarLoja();
+    }
+  </script>
+</body>
+</html>

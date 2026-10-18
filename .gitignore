@@ -1,0 +1,20 @@
+# Nunca subir para um repositório público:
+
+# Painel de controle (fica só na sua máquina)
+admin/
+
+# Código do servidor (Edge Function do Supabase)
+api/
+
+# Configurações locais do editor
+.claude/
+.vscode/
+
+# Backups / lixo
+*.bak
+*.bkp
+
+# Sistema
+.DS_Store
+Thumbs.db
+node_modules/
