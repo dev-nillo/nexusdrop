@@ -3,9 +3,23 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="NexusDrop - Loja Oficial. Produtos selecionados com envio para todo o Brasil.">
+  <meta name="description" content="NexusDrop - Loja Oficial. Produtos selecionados com envio para todo o Brasil. Compre com segurança e receba em casa.">
   <meta name="theme-color" content="#4f46e5">
   <title>NexusDrop - Loja Oficial</title>
+
+  <!-- Open Graph / redes sociais -->
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="NexusDrop">
+  <meta property="og:title" content="NexusDrop - Loja Oficial">
+  <meta property="og:description" content="Produtos selecionados com envio para todo o Brasil. Compre com segurança e receba em casa.">
+  <meta property="og:url" content="https://dev-nillo.github.io/nexusdrop/">
+  <meta property="og:image" content="https://dev-nillo.github.io/nexusdrop/Logo/sem%20fundo.png">
+  <meta property="og:locale" content="pt_BR">
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="NexusDrop - Loja Oficial">
+  <meta name="twitter:description" content="Produtos selecionados com envio para todo o Brasil.">
+  <meta name="twitter:image" content="https://dev-nillo.github.io/nexusdrop/Logo/sem%20fundo.png">
 
   <!-- Conexões antecipadas: economizam tempo de DNS/TLS em cada recurso externo -->
   <link rel="preconnect" href="https://cdn.tailwindcss.com">
@@ -188,7 +202,8 @@
         price: preco,
         image: String(i.image || ''),
         qty: Math.max(1, Math.floor(num(i.qty) || 1)),
-        size: (i.size === null || i.size === undefined || i.size === '') ? null : String(i.size)
+        size: (i.size === null || i.size === undefined || i.size === '') ? null : String(i.size),
+        supplier: (i.supplier === null || i.supplier === undefined || i.supplier === '') ? null : String(i.supplier)
       };
     }
 
@@ -264,7 +279,7 @@
           // Só as colunas que a vitrine usa. `avaliacoes` (textos pesados) fica fora.
           let { data, error } = await supabaseClient
             .from('products')
-            .select('id,name,price,image,description,category,rating,reviews,sizes')
+            .select('id,name,price,image,description,category,rating,reviews,sizes,supplier')
             .order('id', { ascending: true });
           if (error) {
             // Se alguma coluna não existir, busca tudo (mais pesado, mas funciona).

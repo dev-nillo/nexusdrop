@@ -6,6 +6,19 @@
   <meta name="theme-color" content="#4f46e5">
   <title>NexusDrop - Detalhes do Produto</title>
 
+  <!-- Open Graph / redes sociais (atualizado via JS ao carregar o produto) -->
+  <meta property="og:type" content="product">
+  <meta property="og:site_name" content="NexusDrop">
+  <meta property="og:title" content="NexusDrop - Detalhes do Produto">
+  <meta property="og:description" content="Veja detalhes, preço e avaliações. Envio para todo o Brasil.">
+  <meta property="og:url" content="">
+  <meta property="og:image" content="">
+  <meta property="og:locale" content="pt_BR">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="NexusDrop - Detalhes do Produto">
+  <meta name="twitter:description" content="Veja detalhes, preço e avaliações. Envio para todo o Brasil.">
+  <meta name="twitter:image" content="">
+
   <!-- Conexões antecipadas -->
   <link rel="preconnect" href="https://cdn.tailwindcss.com">
   <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
@@ -206,7 +219,8 @@
         price: num(prod.price),
         image: String(prod.image || ''),
         qty: qty || 1,
-        size: size || null
+        size: size || null,
+        supplier: (prod.supplier === null || prod.supplier === undefined || prod.supplier === '') ? null : String(prod.supplier)
       };
     }
 
@@ -225,7 +239,8 @@
               price: preco,
               image: String(i.image || ''),
               qty: Math.max(1, Math.floor(num(i.qty) || 1)),
-              size: (i.size === null || i.size === undefined || i.size === '') ? null : String(i.size)
+              size: (i.size === null || i.size === undefined || i.size === '') ? null : String(i.size),
+              supplier: (i.supplier === null || i.supplier === undefined || i.supplier === '') ? null : String(i.supplier)
             };
           })
           .filter(Boolean);
@@ -396,6 +411,34 @@
       }
 
       document.title = (produto.name || 'Produto') + ' | NexusDrop';
+
+      // Atualiza meta tags (SEO / compartilhamento) com os dados do produto.
+      try {
+        const ogTitle = (produto.name || 'Produto') + ' | NexusDrop';
+        const ogDesc = (limparDesc(produto.description) || 'Veja detalhes, preço e avaliações. Envio para todo o Brasil.').slice(0, 160);
+        const ogImage = produto.image || '';
+        const ogUrl = location.href;
+        const setMeta = (sel, val) => { const el = document.querySelector(sel); if (el && val) el.setAttribute('content', val); };
+        setMeta('meta[property="og:title"]', ogTitle);
+        setMeta('meta[property="og:description"]', ogDesc);
+        setMeta('meta[property="og:image"]', ogImage);
+        setMeta('meta[property="og:url"]', ogUrl);
+        setMeta('meta[name="twitter:title"]', ogTitle);
+        setMeta('meta[name="twitter:description"]', ogDesc);
+        setMeta('meta[name="twitter:image"]', ogImage);
+        // JSON-LD (dados estruturados para Google)
+        let ld = document.getElementById('ldProduct');
+        if (!ld) { ld = document.createElement('script'); ld.type = 'application/ld+json'; ld.id = 'ldProduct'; document.head.appendChild(ld); }
+        ld.textContent = JSON.stringify({
+          '@context': 'https://schema.org',
+          '@type': 'Product',
+          name: produto.name || 'Produto',
+          description: limparDesc(produto.description) || '',
+          image: produto.image || '',
+          offers: { '@type': 'Offer', priceCurrency: 'BRL', price: Number(produto.price) || 0, availability: 'https://schema.org/InStock' },
+          aggregateRating: (Number(produto.rating) > 0) ? { '@type': 'AggregateRating', ratingValue: Number(produto.rating), reviewCount: Number(produto.reviews) || 0 } : undefined
+        });
+      } catch (e) {}
       document.getElementById('pNome').textContent = produto.name || 'Produto';
       document.getElementById('pPreco').textContent = brl(produto.price);
       document.getElementById('pDesc').textContent = limparDesc(produto.description);
