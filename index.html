@@ -42,6 +42,12 @@
     body { font-family: 'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI', sans-serif; }
     /* Cards fora da tela não custam pintura (economiza CPU no celular) */
     .cv-card { content-visibility: auto; contain-intrinsic-size: auto 420px; }
+    /* Mobile: alvos de toque confortáveis e espaçamento compacto */
+    @media (max-width: 640px) {
+      .cv-card { contain-intrinsic-size: auto 360px; }
+      button, a { min-height: 40px; }
+      #btnVerMais { width: 100%; }
+    }
   </style>
 </head>
 <body class="bg-gray-50 text-gray-800 flex flex-col min-h-screen">
@@ -113,7 +119,7 @@
       <h1 class="text-2xl font-bold text-slate-900">Produtos em Destaque</h1>
       <p id="buscaStatus" class="hidden text-sm text-slate-500"></p>
     </div>
-    <div id="storeProductsGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6"></div>
+    <div id="storeProductsGrid" class="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-6"></div>
   </main>
 
   <!-- Modal Cadastro Rápido -->
@@ -569,7 +575,35 @@
       initSupabase();
       checkUserUI();
       carregarCarrinho();
+
+      // Restaura estado da busca/paginação ao recarregar (F5).
+      try {
+        const st = JSON.parse(sessionStorage.getItem('nexus_store_state') || 'null');
+        if (st && typeof st === 'object') {
+          if (typeof st.query === 'string') queryBusca = st.query;
+          if (typeof st.qtd === 'number' && st.qtd > 0) qtdVisivel = st.qtd;
+        }
+      } catch (e) {}
+
       loadProducts();
+
+      // Restaura a posição de rolagem após a vitrine pintar.
+      try {
+        const sy = sessionStorage.getItem('nexus_scroll_y');
+        if (sy !== null) {
+          const y = Number(sy);
+          let tent = 0;
+          const tentar = () => {
+            if (tent++ > 30) return;
+            if (document.getElementById('storeProductsGrid').children.length > 0) {
+              window.scrollTo(0, y);
+            } else {
+              setTimeout(tentar, 100);
+            }
+          };
+          setTimeout(tentar, 300);
+        }
+      } catch (e) {}
 
       // Vindo da página de detalhes (index.html?cart=open) já abre o carrinho.
       const q = new URLSearchParams(location.search);
@@ -578,6 +612,16 @@
         try { history.replaceState(null, '', location.pathname); } catch (e) {}
       }
     }
+
+    // Salva estado da busca/paginação e rolagem antes de recarregar/sair.
+    function salvarEstadoLoja() {
+      try {
+        sessionStorage.setItem('nexus_store_state', JSON.stringify({ query: queryBusca, qtd: qtdVisivel }));
+        sessionStorage.setItem('nexus_scroll_y', String(window.scrollY || window.pageYOffset || 0));
+      } catch (e) {}
+    }
+    window.addEventListener('beforeunload', salvarEstadoLoja);
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') salvarEstadoLoja(); });
 
     if (document.readyState === 'loading') {
       document.addEventListener('DOMContentLoaded', iniciarLoja);
