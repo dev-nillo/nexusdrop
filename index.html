@@ -279,21 +279,32 @@
         } catch (e) {}
       }
 
-      // 2) Busca a lista atualizada no banco.
+      // 2) Busca a lista atualizada no banco (paginado — Supabase limita a 1000 por chamada).
       let products = [];
       if (initSupabase()) {
         try {
-          // Só as colunas que a vitrine usa. `avaliacoes` (textos pesados) fica fora.
-          let { data, error } = await supabaseClient
-            .from('products')
-            .select('id,name,price,image,description,category,rating,reviews,sizes,supplier')
-            .order('id', { ascending: true });
-          if (error) {
-            // Se alguma coluna não existir, busca tudo (mais pesado, mas funciona).
-            const alt = await supabaseClient.from('products').select('*');
-            data = alt.data;
+          const COLS = 'id,name,price,image,description,category,rating,reviews,sizes,supplier';
+          const PAGE = 1000;
+          let from = 0;
+          while (true) {
+            const { data, error } = await supabaseClient
+              .from('products')
+              .select(COLS)
+              .order('id', { ascending: true })
+              .range(from, from + PAGE - 1);
+            let d = [];
+            if (error) {
+              const alt = await supabaseClient.from('products').select('*').range(from, from + PAGE - 1);
+              d = alt.data || [];
+            } else {
+              d = data || [];
+            }
+            if (!d.length) break;
+            products = products.concat(d);
+            if (d.length < PAGE) break;
+            from += PAGE;
           }
-          if (data && data.length > 0) products = data;
+          if (products.length === 0) products = [];
         } catch (e) {
           products = [];
         }
