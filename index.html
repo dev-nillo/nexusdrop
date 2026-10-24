@@ -85,6 +85,17 @@
         <span class="font-extrabold text-2xl tracking-tight text-white">NexusDrop</span>
       </div>
 
+      <!-- Ordenação -->
+      <div class="order-4 w-full sm:order-none sm:w-auto">
+        <select id="ordemLoja" onchange="onOrdem(this.value)" class="w-full sm:w-auto bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-indigo-500 transition">
+          <option value="relevancia">Ordenar: Relevância</option>
+          <option value="preco_desc">Preço: maior → menor</option>
+          <option value="preco_asc">Preço: menor → maior</option>
+          <option value="rating">Melhor avaliados</option>
+          <option value="reviews">Mais avaliados</option>
+        </select>
+      </div>
+
       <!-- Busca na loja (tolerante a erros de digitação) -->
       <div class="order-3 w-full sm:order-none sm:flex-1 sm:max-w-md sm:mx-3">
         <div class="relative">
@@ -321,6 +332,7 @@
 
     // ================= Busca da vitrine (tolerante a erros) =================
     let queryBusca = '';
+    let ordenarPor = 'relevancia';
     let timerBusca = null;
     let qtdVisivel = 60; // quantos cards desenhar por vez (botão "Ver mais")
 
@@ -407,11 +419,35 @@
       inp.focus();
     }
 
+    function onOrdem(valor) {
+      ordenarPor = valor;
+      qtdVisivel = 60;
+      renderGrid();
+      salvarEstadoLoja();
+    }
+
+    function ordenarLista(lista) {
+      const arr = lista.slice();
+      switch (ordenarPor) {
+        case 'preco_desc':
+          return arr.sort((a, b) => (num(b.price) || 0) - (num(a.price) || 0));
+        case 'preco_asc':
+          return arr.sort((a, b) => (num(a.price) || 0) - (num(b.price) || 0));
+        case 'rating':
+          return arr.sort((a, b) => (Number(b.rating) || 0) - (Number(a.rating) || 0));
+        case 'reviews':
+          return arr.sort((a, b) => (Number(b.reviews) || 0) - (Number(a.reviews) || 0));
+        default:
+          return arr; // relevancia: ordem original (busca por score já ordena)
+      }
+    }
+
     function renderGrid() {
       const grid = document.getElementById('storeProductsGrid');
       const status = document.getElementById('buscaStatus');
       const procurando = queryBusca.trim().length >= 2;
-      const lista = procurando ? filtrarCatalogo(queryBusca) : catalog;
+      const listaBase = procurando ? filtrarCatalogo(queryBusca) : catalog;
+      const lista = ordenarPor === 'relevancia' ? listaBase : ordenarLista(listaBase);
 
       status.classList.toggle('hidden', !procurando);
       if (procurando) {
@@ -553,10 +589,12 @@
       };
 
       // Se o painel falhar, o pedido ainda sai no WhatsApp (canal principal).
+      let pedidoSalvoNoPainel = false;
       if (supabaseClient) {
         try {
           const { error } = await supabaseClient.from('orders').insert([newOrder]);
           if (error) console.warn('Pedido não salvo no painel:', error.message);
+          else pedidoSalvoNoPainel = true;
         } catch (e) {
           console.warn('Pedido não salvo no painel:', e);
         }
@@ -572,12 +610,42 @@
       cart.forEach(c => { const tam = c.size ? ' (Tam: ' + c.size + ')' : ''; msg += '- ' + c.qty + 'x ' + c.name + tam + ' (R$ ' + c.price.toFixed(2) + ')\n'; });
       msg += `\n💰 *Total:* R$ ${total.toFixed(2)}`;
 
-      window.open(`https://wa.me/${SEU_WHATSAPP}?text=${encodeURIComponent(msg)}`, '_blank');
+      // Tenta criar pagamento via Mercado Pago (PIX/cartao/boleto).
+      let pagamentoCriado = false;
+      if (pedidoSalvoNoPainel && supabaseClient) {
+        try {
+          const resPag = await fetch('https://ofktrfgwbrzewftjewze.supabase.co/functions/v1/buscar', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY },
+            body: JSON.stringify({
+              mode: 'payment_create',
+              order_id: newOrder.id,
+              items: cart.map(c => ({ id: c.id, name: c.name, qty: c.qty, price: c.price })),
+              total: total,
+              customer: currentUser
+            })
+          });
+          const jPag = await resPag.json();
+          if (jPag && jPag.ok && jPag.init_point) {
+            pagamentoCriado = true;
+            try { localStorage.setItem('nexus_cart', JSON.stringify(cart)); } catch (e) {}
+            window.location.href = jPag.init_point;
+            return;
+          }
+        } catch (e) {
+          console.warn('Pagamento nao criado:', e);
+        }
+      }
+
+      // Fallback: WhatsApp (sempre funciona, mesmo sem Mercado Pago)
+      if (!pagamentoCriado) {
+        window.open('https://wa.me/' + SEU_WHATSAPP + '?text=' + encodeURIComponent(msg), '_blank');
+      }
       cart = [];
       updateCart();
       try { localStorage.removeItem('nexus_cart'); } catch (e) {}
       toggleCartModal();
-      alert('Pedido enviado com sucesso!');
+      alert(pagamentoCriado ? 'Redirecionando para o pagamento...' : 'Pedido enviado com sucesso!');
     }
 
     // DOMContentLoaded dispara assim que o HTML fica pronto — não espera as
@@ -593,6 +661,7 @@
         if (st && typeof st === 'object') {
           if (typeof st.query === 'string') queryBusca = st.query;
           if (typeof st.qtd === 'number' && st.qtd > 0) qtdVisivel = st.qtd;
+          if (typeof st.ordem === 'string') ordenarPor = st.ordem;
         }
       } catch (e) {}
 
@@ -616,6 +685,10 @@
         }
       } catch (e) {}
 
+       // Restaura a ordenação selecionada no dropdown
+       const selOrdem = document.getElementById('ordemLoja');
+       if (selOrdem) selOrdem.value = ordenarPor;
+
       // Vindo da página de detalhes (index.html?cart=open) já abre o carrinho.
       const q = new URLSearchParams(location.search);
       if (q.get('cart') === 'open') {
@@ -627,7 +700,7 @@
     // Salva estado da busca/paginação e rolagem antes de recarregar/sair.
     function salvarEstadoLoja() {
       try {
-        sessionStorage.setItem('nexus_store_state', JSON.stringify({ query: queryBusca, qtd: qtdVisivel }));
+        sessionStorage.setItem('nexus_store_state', JSON.stringify({ query: queryBusca, qtd: qtdVisivel, ordem: ordenarPor }));
         sessionStorage.setItem('nexus_scroll_y', String(window.scrollY || window.pageYOffset || 0));
       } catch (e) {}
     }
