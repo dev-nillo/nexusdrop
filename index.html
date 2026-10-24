@@ -372,7 +372,9 @@
     function combinarTermo(q, t) {
       if (q === t) return 3;
       if (t.startsWith(q) || q.startsWith(t)) return 2;
-      const maxDist = q.length <= 3 ? 0 : q.length <= 6 ? 1 : 2;
+      // Máximo 1 erro de digitação para palavras de 5+ letras (mais rigoroso,
+  // evita "teclas" casar com "teclado" ou "gorro" com "teclado").
+  const maxDist = q.length <= 4 ? 0 : 1;
       if (maxDist > 0 && distEdicao(q, t, maxDist) <= maxDist) return 1;
       return 0;
     }
