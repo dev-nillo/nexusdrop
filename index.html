@@ -384,7 +384,8 @@
       for (const q of termos) {
         let melhor = 0;
         for (const t of nome) { const c = combinarTermo(q, t); if (c > melhor) melhor = c; }
-        if (melhor < 3) { // descrição/categoria valem menos que o nome
+        // Descrição só reforça se já houve match parcial no nome (evita produtos irrelevantes).
+        if (melhor > 0 && melhor < 3) {
           for (const t of resto) { const c = combinarTermo(q, t) * 0.6; if (c > melhor) melhor = c; }
         }
         if (melhor === 0) return 0; // todos os termos precisam casar (e não ou)
